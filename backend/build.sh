@@ -1,0 +1,3 @@
+#!/bin/bash
+# Download NLTK data
+python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt'); nltk.download('punkt_tab')"

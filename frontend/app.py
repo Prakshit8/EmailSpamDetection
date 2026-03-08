@@ -8,6 +8,7 @@ with FastAPI backend integration.
 import streamlit as st
 import requests
 import time
+import os
 from typing import Dict, Any, Optional
 import json
 
@@ -20,7 +21,7 @@ st.set_page_config(
 )
 
 # Configuration
-BACKEND_URL = "http://localhost:8001"  # Updated to match running backend
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8001")
 
 # Custom CSS for dark theme and professional styling
 def load_custom_css():

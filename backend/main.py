@@ -9,6 +9,7 @@ import pickle
 import nltk
 import string
 import numpy as np
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -39,6 +40,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Get production environment variables
+PORT = int(os.environ.get("PORT", 8000))
 
 # Pydantic model for request/response
 class EmailRequest(BaseModel):
@@ -89,9 +93,18 @@ def load_model_artifacts():
     global model, vectorizer
     
     try:
-        with open('model.pkl', 'rb') as f:
+        # Try to load from current directory first (for local development)
+        model_path = 'model.pkl'
+        vectorizer_path = 'vectorizer.pkl'
+        
+        # If not found, try to load from the root directory (for Render)
+        if not os.path.exists(model_path):
+            model_path = os.path.join(os.getcwd(), 'model.pkl')
+            vectorizer_path = os.path.join(os.getcwd(), 'vectorizer.pkl')
+        
+        with open(model_path, 'rb') as f:
             model = pickle.load(f)
-        with open('vectorizer.pkl', 'rb') as f:
+        with open(vectorizer_path, 'rb') as f:
             vectorizer = pickle.load(f)
         
         logger.info("Model and vectorizer loaded successfully")
@@ -269,7 +282,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
-        reload=True,
+        port=PORT,
+        reload=False,  # Set to False for production
         log_level="info"
     )
