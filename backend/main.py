@@ -70,22 +70,43 @@ def ensure_nltk_resource(resource_name: str) -> None:
         nltk.data.find(resource_name)
     except LookupError:
         logger.info(f"Downloading NLTK resource: {resource_name}")
-        nltk.download(resource_name.split('/')[-1], quiet=True)
+        try:
+            # Try downloading without quiet first for better error handling
+            nltk.download(resource_name.split('/')[-1], quiet=True)
+        except Exception as e:
+            logger.error(f"Failed to download {resource_name}: {e}")
+            # Fallback for critical resources
+            if 'stopwords' in resource_name:
+                logger.warning("Using fallback stopwords")
+                from nltk.corpus import stopwords
+                global stop_words
+                stop_words = set(['i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once'])
 
 def initialize_text_processing():
     """Initialize text processing components."""
     global stemmer, stop_words
     
-    # Ensure NLTK resources are available
-    ensure_nltk_resource('corpora/stopwords')
-    ensure_nltk_resource('tokenizers/punkt')
+    # Initialize stemmer first
+    stemmer = PorterStemmer()
+    
+    # Ensure NLTK resources are available with fallbacks
+    try:
+        ensure_nltk_resource('corpora/stopwords')
+        stop_words = set(stopwords.words('english'))
+    except Exception as e:
+        logger.warning(f"Failed to load stopwords: {e}, using fallback")
+        stop_words = set(['i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once'])
+    
+    try:
+        ensure_nltk_resource('tokenizers/punkt')
+    except Exception as e:
+        logger.warning(f"Failed to load punkt tokenizer: {e}")
+    
     try:
         ensure_nltk_resource('tokenizers/punkt_tab')
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to load punkt_tab: {e}")
     
-    stemmer = PorterStemmer()
-    stop_words = set(stopwords.words('english'))
     logger.info("Text processing components initialized")
 
 def load_model_artifacts():
@@ -129,8 +150,12 @@ def transform_text(text: str) -> str:
     # Convert to lowercase
     text = text.lower()
     
-    # Tokenize
-    tokens = nltk.word_tokenize(text)
+    # Tokenize with fallback
+    try:
+        tokens = nltk.word_tokenize(text)
+    except Exception as e:
+        logger.warning(f"NLTK tokenization failed: {e}, using simple split")
+        tokens = text.split()
     
     # Remove non-alphanumeric characters
     tokens = [token for token in tokens if token.isalnum()]
